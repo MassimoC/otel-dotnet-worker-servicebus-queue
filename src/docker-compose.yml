@@ -1,0 +1,83 @@
+version: '3.4'
+
+services:
+  # Jaeger
+  jaeger: 
+    container_name: jaeger
+    image: jaegertracing/all-in-one:1.47.0
+    profiles: ["infra","backend"]
+    ports:
+    - "16686:16686"
+    - "14268:14268"
+    - "14250:14250" 
+    networks:
+      - otelnet
+
+  # Zipkin
+  zipkin:
+    image: openzipkin/zipkin:latest
+    profiles: ["infra","backend"]
+    container_name: zipkin
+    restart: always
+    ports:
+      - "9411:9411"
+    networks:
+      - otelnet
+
+  tempo:
+    image: grafana/tempo:2.2.0
+    profiles: ["infra","backend"]
+    container_name: tempo
+    hostname: tempo
+    restart: always
+    command: [ "-config.file=/etc/tempo-config.yaml" ]
+    volumes:
+      - "/etc/timezone:/etc/timezone:ro"
+      - "/etc/localtime:/etc/localtime:ro"
+      - /c/GIT/GitHub/mmcr/otel-dotnet-worker-servicebus-queue/src/Infra/tempo-config.yaml:/etc/tempo-config.yaml
+      - /c/GIT/GitHub/mmcr/otel-dotnet-worker-servicebus-queue/src/Infra:/tmp/tempo
+    ports:
+      - 3200:3200  # TEMPO
+      - 14007:4317  # OLTP
+    depends_on:
+      - otel-collector
+    networks:
+      - otelnet
+
+  # Azure Service bus messae processor
+  OtelKeda.Dotnet.OrderProcessor:
+    container_name: otelkeda-processor  
+    image:  otelkeda/sample-dotnet-worker-servicebus-queue:0.21.0
+    profiles: ["app"]
+    build:
+      context: .
+      dockerfile: OtelKeda.Dotnet.OrderProcessor/Dockerfile
+    networks:
+      - otelnet
+
+  # Open Telemetry collector
+  otel.collector:
+    profiles: ["infra","otel"]
+    container_name: otel
+    hostname: otel
+    image: otel/opentelemetry-collector-contrib:0.83.0
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+        - /c/GIT/GitHub/mmcr/otel-dotnet-worker-servicebus-queue/src/Infra/otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    restart: unless-stopped
+    ports:
+        - "4317:4317"    # OTLP gRPC receiver
+        - "4318:4318"    # OTLP HTTP receiver
+        - "13133:13133"  # health_check extension
+        - "55670:55679"  # zpages extension
+        - "31888:1888"   # pprof extension
+        - "8888:8888"    # Prometheus metrics exposed by the collector
+        - "8889:8889"    # Prometheus exporter metrics
+    networks:
+      - otelnet
+    depends_on:
+      - zipkin
+      - jaeger
+      - tempo    
+networks:
+  otelnet:

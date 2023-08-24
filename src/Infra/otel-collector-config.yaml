@@ -1,0 +1,42 @@
+# OpenTelemetry Collector config that receives OTLP and exports to Zipkin
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: "0.0.0.0:4317"
+      http:
+        endpoint: "0.0.0.0:4318"
+processors:
+  batch:
+    send_batch_size: 1024
+    timeout: 5s
+exporters:
+  logging:
+    verbosity: detailed
+  zipkin:
+    endpoint: "http://zipkin:9411/api/v2/spans"
+  jaeger:
+    endpoint: jaeger:14250
+    tls:
+      insecure: true
+  otlp:
+    endpoint: tempo:14007
+    tls:
+      insecure: true
+extensions:
+  zpages: {}
+service:
+  extensions: [zpages]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [logging,zipkin,jaeger,otlp]
+    metrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [logging]
+    logs:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [logging]

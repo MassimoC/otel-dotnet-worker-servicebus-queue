@@ -1,0 +1,13 @@
+version: '3.4'
+
+services:
+  OtelKeda.Dotnet.OrderProcessor:
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - KEDA_SERVICEBUS_QUEUE_NAME=orders
+      - KEDA_SERVICEBUS_AUTH_MODE=ConnectionString
+      - KEDA_SERVICEBUS_QUEUE_CONNECTIONSTRING=Endpoint=sb://otelkeda.servicebus.windows.net/;SharedAccessKeyName=order-publisher;SharedAccessKey=TODO;EntityPath=orders
+      - Otlp__ServiceName=OrderProcessor
+      - Otlp__Endpoint=http://otel:4317
+      - Otlp__LogsPath=/v1/logs
+      - Otlp__ActivitySource=OtelKeda
